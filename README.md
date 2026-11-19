@@ -5,15 +5,21 @@
 [![CI status](https://github.com/salekinnewaz/playwright-summary-reporter/actions/workflows/ci.yml/badge.svg)](https://github.com/salekinnewaz/playwright-summary-reporter/actions/workflows/ci.yml)
 [![MIT license](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
-A zero-dependency Playwright custom reporter that turns your test run into a clean Markdown summary — locally and straight into the GitHub Actions Job Summary tab.
+A zero-dependency Playwright custom reporter that turns your test run into a **beautiful Markdown dashboard** — locally and straight into the GitHub Actions Job Summary tab.
 
 ## Key Features
 
-- 📝 Generates a readable Markdown summary with pass / fail / flaky / skipped counts and pass rate.
+- 🎨 **GitHub-Flavored Alert Card** — a green `> [!TIP]` for a clean run, a red `> [!CAUTION]` otherwise, with status, pass rate and the full breakdown.
+- 🟩🟥🟨⬜ **Proportional health bar** — a 12-block Unicode bar that visualises the result mix at a glance.
+- 📊 **KPI summary table** — bold, high-contrast numbers for every headline metric.
+- 🥧 **Native Mermaid pie chart** — a *Test Results Distribution* chart rendered by GitHub itself.
+- 🎯🔍💥⏱️ **Deterministic failure badges** — every failure classified as Assertion, Timeout, Locator or Runtime.
+- 🔁 **Copy-ready re-run command** — `npx playwright test <file>:<line>` for exactly the failed tests.
+- 🤖 **AI debugging prompt** — a collapsible accordion bundling every failure for Copilot / Claude / Cursor.
 - 📊 Per-project breakdown across browsers (`chromium`, `firefox`, `webkit`, …).
-- ❌ Failed test details with ANSI-stripped, truncated error messages.
 - ⚠️ Flaky test list with retry counts.
-- 🐢 Top-N slowest tests.
+- 🐢 Top-N slowest tests with relative duration bars.
+- 🔢 **Mathematically airtight totals** — `Total === Passed + Failed + Flaky + Skipped`, always.
 - 🚀 Automatically appends to `GITHUB_STEP_SUMMARY` — no extra workflow wiring needed.
 - 📦 Zero runtime dependencies — only Node.js built-ins (`fs`, `path`).
 - 🔒 Retries are counted once, using the test's final outcome.
@@ -61,6 +67,10 @@ reporter: [['./dist/index.js', { outputFile: 'test-summary.md' }]]
 | `showSlowestTests` | `number` | `5` | Number of slowest tests to list. Set to `0` to disable the section. |
 | `maxErrorLength` | `number` | `250` | Maximum length of an error message before truncation. |
 | `includeProjectBreakdown` | `boolean` | `true` | Render the per-project breakdown table. |
+| `includeChart` | `boolean` | `true` | Render the Mermaid *Test Results Distribution* pie chart. |
+| `includeRerunCommand` | `boolean` | `true` | Render the copy-ready "re-run only failed tests" command block. |
+| `includeAiPrompt` | `boolean` | `true` | Render the collapsible AI debugging prompt accordion. |
+| `collapsibleDetails` | `boolean` | `false` | Wrap long sections (e.g. *Slowest Tests*) in `<details>` accordions. |
 
 ## GitHub Actions Integration
 
@@ -91,44 +101,134 @@ To opt out of the GitHub append, pass `writeToGitHubSummary: false`.
 
 ## Sample Rendered Output
 
+A failing run surfaces everything at a glance — red alert card, failure-type badges, the exact
+`file:line` to re-run, and a ready-to-paste AI debugging prompt:
+
+<img src="./examples/preview-failed-summary.png" alt="playwright-summary-reporter rendered output for a failing run — red caution alert card, health bar, KPI table, Mermaid pie chart, failed tests table with type badges, re-run command and slowest tests" width="100%">
+
+A fully passing run renders the same dashboard in green:
+
+<img src="./examples/preview-summary.png" alt="playwright-summary-reporter rendered output for a passing run — green tip alert card with health bar, KPI table, Mermaid pie chart, project breakdown and slowest tests" width="100%">
+
 ```markdown
 ## Playwright Test Summary
 
-**Status:** FAILED · **Duration:** 12.4s · **Pass Rate:** 75%
+> [!CAUTION]
+>
+> ### ❌ FAILED — 60% pass rate
+>
+> `🟩🟩🟩🟩🟩🟩🟥🟥🟥🟨⬜⬜` &nbsp; **Health Bar**
+>
+> ✅ **Passed:** 6 &nbsp;•&nbsp; ❌ **Failed:** 3 &nbsp;•&nbsp; ⚠️ **Flaky:** 1 &nbsp;•&nbsp; ⏭️ **Skipped:** 2
+>
+> 📊 **Total:** 12 &nbsp;•&nbsp; ⏱️ **Duration:** 12.4s
+>
+> ⏱️ **Timed Out:** 1 (counted within Failed)
 
-### Summary
+| Metric | Value |
+| --- | --- |
+| ✅ Passed | **6** |
+| ❌ Failed | **3** |
+| ⚠️ Flaky | **1** |
+| ⏭️ Skipped | **2** |
+| 📊 Total | **12** |
+| 🎯 Pass Rate | **60%** |
+| ⏱️ Duration | **12.4s** |
 
-| Total | Passed | Failed | Flaky | Skipped | Duration | Pass Rate |
-| --- | --- | --- | --- | --- | --- | --- |
-| 8 | 5 | 2 | 1 | 0 | 12.4s | 75% |
+```mermaid
+pie showData
+    title Test Results Distribution
+    "Passed" : 6
+    "Failed" : 3
+    "Flaky" : 1
+    "Skipped" : 2
+```
 
 ### 📊 Project Breakdown
 
 | Project | Total | Passed | Failed | Flaky | Skipped | Duration |
 | --- | --- | --- | --- | --- | --- | --- |
-| chromium | 6 | 4 | 1 | 1 | 0 | 9.1s |
-| firefox | 2 | 1 | 1 | 0 | 0 | 3.3s |
+| chromium | 5 | 3 | 2 | 1 | 0 | 6.6s |
+| firefox | 4 | 2 | 1 | 0 | 1 | 4.5s |
+| webkit | 3 | 2 | 0 | 0 | 1 | 640ms |
 
 ### ❌ Failed Tests
 
-| Test | Project | Location | Error |
-| --- | --- | --- | --- |
-| login › should reject invalid password | firefox | tests/login.spec.ts:24 | expect(received).toBe(expected) |
+| Type | Test | Project | Location | Error |
+| --- | --- | --- | --- | --- |
+| 🎯 Assertion | authentication › should reject invalid password | firefox | tests/auth/login.spec.ts:24 | Error: expect(received).toBe(expected) |
+| ⏱️ Timeout | payment › should validate expired card | chromium | tests/payment/card.spec.ts:55 | Error: Test timeout of 5000ms exceeded. |
+
+#### 🔁 Re-run only failed tests
+
+```bash
+npx playwright test tests/auth/login.spec.ts:24 tests/payment/card.spec.ts:55
+```
+
+<details>
+<summary>🤖 AI Debugging Prompt (click to copy for Copilot / Claude / Cursor)</summary>
+
+```text
+You are triaging a failing Playwright test run ("Playwright Test Summary").
+...
+```
+
+</details>
 
 ### ⚠️ Flaky Tests
 
-| Test | Project | Retries | Duration |
-| --- | --- | --- | --- |
-| cart › should add item | chromium | 1 | 2.4s |
+| Test | Project | Retries | Duration | Location |
+| --- | --- | --- | --- | --- |
+| cart › should add item to basket | chromium | 1 | 2.4s | tests/cart/add.spec.ts:12 |
 
 ### 🐢 Slowest Tests
 
-| Test | Project | Duration |
-| --- | --- | --- |
-| login › should reject invalid password | firefox | 3.1s |
+| Test | Project | Duration | Relative |
+| --- | --- | --- | --- |
+| authentication › should reject invalid password | firefox | 3.1s | `██████████` |
+| cart › should add item to basket | chromium | 2.4s | `████████░░` |
 
 _Generated by [playwright-summary-reporter](https://www.npmjs.com/package/playwright-summary-reporter)_
 ```
+
+## Dashboard Options
+
+The dashboard sections are individually toggleable:
+
+```ts
+// playwright.config.ts
+import { defineConfig } from '@playwright/test';
+
+export default defineConfig({
+  reporter: [
+    ['list'],
+    [
+      'playwright-summary-reporter',
+      {
+        outputFile: 'test-summary.md',
+        title: 'Nightly Regression',
+        includeChart: true,        // Mermaid pie chart
+        includeRerunCommand: true, // copy-ready re-run block
+        includeAiPrompt: true,     // AI debugging accordion
+        collapsibleDetails: false, // wrap long sections in <details>
+      },
+    ],
+  ],
+});
+```
+
+## Total Consistency
+
+A timeout is a **kind of failure**, not a separate bucket. The four result buckets are
+mutually exclusive and collectively exhaustive, so this invariant always holds — in every
+table, in the chart, and in the KPI strip:
+
+```text
+Total === Passed + Failed + Flaky + Skipped
+```
+
+Timeouts are still surfaced: as a `⏱️ Timeout` badge in the Failed Tests table, and as a
+`Timed Out` line in the alert card. They are never double-counted.
 
 ## Author
 

@@ -13,3 +13,10 @@ test-summary.md
 test-results/
 playwright-report/
 examples/test-summary.md
+
+# npm pack artifacts
+*.tgz
+
+# local env files
+.env
+.env.*

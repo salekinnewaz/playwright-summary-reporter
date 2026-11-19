@@ -13,7 +13,7 @@ import type {
   TestOutcome,
   TestRecord,
 } from './types';
-import { cleanErrorMessage, resolveOptions } from './utils';
+import { cleanErrorMessage, classifyFailure, resolveOptions } from './utils';
 
 /**
  * `playwright-summary-reporter` — a zero-dependency Playwright reporter that
@@ -55,6 +55,9 @@ export default class PlaywrightSummaryReporter implements Reporter {
       retries: result.retry,
       outcome,
       ...(error ? { error } : {}),
+      ...(outcome === 'failed' || outcome === 'timedOut'
+        ? { category: classifyFailure(error, outcome) }
+        : {}),
     });
   }
 
@@ -179,11 +182,29 @@ export default class PlaywrightSummaryReporter implements Reporter {
     const tests = [...this.records.values()];
 
     const passed = tests.filter((t) => t.outcome === 'passed').length;
-    const failed = tests.filter((t) => t.outcome === 'failed').length;
-    const timedOut = tests.filter((t) => t.outcome === 'timedOut').length;
     const flaky = tests.filter((t) => t.outcome === 'flaky').length;
     const skipped = tests.filter((t) => t.outcome === 'skipped').length;
+
+    // A timeout is a *kind of* failure, not a separate bucket. Folding it into
+    // `failed` is what guarantees the core invariant:
+    //   total === passed + failed + flaky + skipped
+    const failed = tests.filter((t) => t.outcome === 'failed' || t.outcome === 'timedOut').length;
+
+    // Sub-count of `failed` — used for the timeout badge, never added to totals.
+    const timedOut = tests.filter((t) => t.outcome === 'timedOut').length;
+
     const total = tests.length;
+
+    // The four buckets are mutually exclusive and collectively exhaustive, so
+    // this invariant must always hold. Guard it loudly rather than silently
+    // rendering a summary whose numbers do not add up.
+    if (passed + failed + flaky + skipped !== total) {
+      throw new Error(
+        `[playwright-summary-reporter] Inconsistent test counts: ` +
+          `passed(${passed}) + failed(${failed}) + flaky(${flaky}) + skipped(${skipped}) ` +
+          `= ${passed + failed + flaky + skipped}, but total is ${total}.`,
+      );
+    }
 
     // Pass rate excludes skipped tests from the denominator.
     const denominator = total - skipped;
@@ -191,7 +212,7 @@ export default class PlaywrightSummaryReporter implements Reporter {
 
     return {
       title: this.options.title,
-      status: this.resolveStatus(result, failed + timedOut),
+      status: this.resolveStatus(result, failed),
       total,
       passed,
       failed,
@@ -290,21 +311,29 @@ export default class PlaywrightSummaryReporter implements Reporter {
   }
 }
 
-export { formatSummary } from './formatter';
+export { buildAiPrompt, buildRerunCommand, formatSummary } from './formatter';
 export {
+  buildDurationBar,
+  buildHealthBar,
   cleanErrorMessage,
+  classifyFailure,
   collapseWhitespace,
   escapeMarkdown,
+  failureCategoryMeta,
   formatDuration,
   formatPassRate,
   resolveOptions,
   stripAnsi,
+  FAILURE_CATEGORIES,
 } from './utils';
 export type {
+  FailureCategory,
+  FailureCategoryMeta,
   FormatOptions,
   MarkdownSummaryOptions,
   ProjectStats,
   ResolvedOptions,
+  ResultBucket,
   RunStatus,
   SummaryData,
   SummaryReporterOptions,
