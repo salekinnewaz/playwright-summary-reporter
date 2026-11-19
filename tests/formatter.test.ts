@@ -1,0 +1,491 @@
+import * as fs from 'fs';
+import * as os from 'os';
+import * as path from 'path';
+
+import { afterEach, describe, expect, it } from 'vitest';
+
+import { formatSummary } from '../src/formatter';
+import type { SummaryData, TestRecord } from '../src/types';
+import {
+  cleanErrorMessage,
+  collapseWhitespace,
+  escapeMarkdown,
+  formatDuration,
+  formatPassRate,
+  resolveOptions,
+  stripAnsi,
+} from '../src/utils';
+
+function makeTest(overrides: Partial<TestRecord> = {}): TestRecord {
+  return {
+    title: 'suite › should work',
+    project: 'chromium',
+    file: 'tests/example.spec.ts',
+    line: 10,
+    duration: 100,
+    retries: 0,
+    outcome: 'passed',
+    ...overrides,
+  };
+}
+
+function makeSummary(overrides: Partial<SummaryData> = {}): SummaryData {
+  return {
+    title: 'Playwright Test Summary',
+    status: 'PASSED',
+    total: 1,
+    passed: 1,
+    failed: 0,
+    flaky: 0,
+    skipped: 0,
+    timedOut: 0,
+    duration: 1000,
+    passRate: 100,
+    tests: [makeTest()],
+    projects: [
+      { project: 'chromium', total: 1, passed: 1, failed: 0, flaky: 0, skipped: 0, duration: 1000 },
+    ],
+    ...overrides,
+  };
+}
+
+describe('stripAnsi', () => {
+  it('removes ANSI colour codes', () => {
+    const raw = '[31mFAILED[39m expected true to be false';
+    expect(stripAnsi(raw)).toBe('FAILED expected true to be false');
+  });
+
+  it('removes bold and underline sequences', () => {
+    expect(stripAnsi('[1m[4mbold[24m')).toBe('bold');
+  });
+
+  it('leaves plain text untouched', () => {
+    expect(stripAnsi('plain text')).toBe('plain text');
+  });
+});
+
+describe('escapeMarkdown', () => {
+  it('escapes pipe characters so tables do not break', () => {
+    expect(escapeMarkdown('a | b')).toBe('a \\| b');
+  });
+
+  it('escapes multiple pipes', () => {
+    expect(escapeMarkdown('|x|y|')).toBe('\\|x\\|y\\|');
+  });
+
+  it('leaves text without pipes untouched', () => {
+    expect(escapeMarkdown('no pipes')).toBe('no pipes');
+  });
+});
+
+describe('collapseWhitespace', () => {
+  it('collapses newlines and repeated spaces', () => {
+    expect(collapseWhitespace('line1\n\n  line2   tail')).toBe('line1 line2 tail');
+  });
+});
+
+describe('cleanErrorMessage', () => {
+  it('strips ANSI and collapses newlines', () => {
+    const raw = '[31mError:[39m expected |a| to equal b\nat foo.ts:1';
+    const cleaned = cleanErrorMessage(raw, 250);
+
+    expect(cleaned).not.toContain('');
+    expect(cleaned).not.toContain('\n');
+    expect(cleaned).toContain('|a|');
+  });
+
+  it('truncates messages longer than maxLength', () => {
+    const cleaned = cleanErrorMessage('x'.repeat(500), 50);
+    expect(cleaned.length).toBeLessThanOrEqual(51);
+    expect(cleaned.endsWith('…')).toBe(true);
+  });
+
+  it('does not truncate messages within the limit', () => {
+    expect(cleanErrorMessage('short error', 250)).toBe('short error');
+  });
+});
+
+describe('formatDuration', () => {
+  it('formats milliseconds', () => {
+    expect(formatDuration(450)).toBe('450ms');
+  });
+
+  it('formats seconds with one decimal', () => {
+    expect(formatDuration(12400)).toBe('12.4s');
+  });
+
+  it('formats whole seconds without decimals', () => {
+    expect(formatDuration(12000)).toBe('12s');
+  });
+
+  it('formats minutes and seconds', () => {
+    expect(formatDuration(75000)).toBe('1m 15s');
+  });
+
+  it('formats whole minutes', () => {
+    expect(formatDuration(60000)).toBe('1m');
+  });
+
+  it('handles zero', () => {
+    expect(formatDuration(0)).toBe('0ms');
+  });
+});
+
+describe('formatPassRate', () => {
+  it('formats whole percentages', () => {
+    expect(formatPassRate(100)).toBe('100%');
+  });
+
+  it('formats fractional percentages', () => {
+    expect(formatPassRate(92.55)).toBe('92.6%');
+  });
+
+  it('formats zero', () => {
+    expect(formatPassRate(0)).toBe('0%');
+  });
+});
+
+describe('resolveOptions', () => {
+  it('applies defaults', () => {
+    expect(resolveOptions()).toEqual({
+      outputFile: 'playwright-summary.md',
+      title: 'Playwright Test Summary',
+      writeToGitHubSummary: true,
+      showFailedTests: true,
+      showFlakyTests: true,
+      showSlowestTests: 5,
+      maxErrorLength: 250,
+      includeProjectBreakdown: true,
+    });
+  });
+
+  it('overrides defaults with user options', () => {
+    const resolved = resolveOptions({ outputFile: 'out.md', showSlowestTests: 0 });
+    expect(resolved.outputFile).toBe('out.md');
+    expect(resolved.showSlowestTests).toBe(0);
+  });
+});
+
+describe('formatSummary', () => {
+  it('renders a header, status and summary table for an all-passing run', () => {
+    const markdown = formatSummary(makeSummary());
+
+    expect(markdown).toContain('## Playwright Test Summary');
+    expect(markdown).toContain('**Status:** PASSED');
+    expect(markdown).toContain('| Total | Passed | Failed | Flaky | Skipped | Duration | Pass Rate |');
+    expect(markdown).toContain('| 1 | 1 | 0 | 0 | 0 | 1s | 100% |');
+    expect(markdown).toContain(
+      '_Generated by [playwright-summary-reporter](https://www.npmjs.com/package/playwright-summary-reporter)_',
+    );
+  });
+
+  it('renders failed, flaky and skipped sections', () => {
+    const tests = [
+      makeTest({ title: 'failing test', outcome: 'failed', error: 'expected 1 to be 2' }),
+      makeTest({ title: 'flaky test', outcome: 'flaky', retries: 2, duration: 500 }),
+      makeTest({ title: 'skipped test', outcome: 'skipped', duration: 0 }),
+    ];
+
+    const markdown = formatSummary(
+      makeSummary({
+        total: 3,
+        passed: 0,
+        failed: 1,
+        flaky: 1,
+        skipped: 1,
+        passRate: 0,
+        tests,
+      }),
+    );
+
+    expect(markdown).toContain('### ❌ Failed Tests');
+    expect(markdown).toContain('| Test | Project | Location | Error |');
+    expect(markdown).toContain('expected 1 to be 2');
+    expect(markdown).toContain('### ⚠️ Flaky Tests');
+    expect(markdown).toContain('| Test | Project | Retries | Duration |');
+    expect(markdown).toContain('### 📊 Project Breakdown');
+  });
+
+  it('lists timed out tests in the failed tests table', () => {
+    const markdown = formatSummary(
+      makeSummary({
+        total: 1,
+        passed: 0,
+        failed: 0,
+        timedOut: 1,
+        passRate: 0,
+        tests: [makeTest({ outcome: 'timedOut', error: 'Test timeout of 5000ms exceeded.' })],
+      }),
+    );
+
+    expect(markdown).toContain('### ❌ Failed Tests');
+    expect(markdown).toContain('Test timeout of 5000ms exceeded.');
+  });
+
+  it('omits the failed section when there are no failures', () => {
+    const markdown = formatSummary(makeSummary());
+    expect(markdown).not.toContain('Failed Tests');
+    expect(markdown).not.toContain('Flaky Tests');
+  });
+
+  it('omits the failed section when showFailedTests is false', () => {
+    const markdown = formatSummary(
+      makeSummary({
+        total: 1,
+        passed: 0,
+        failed: 1,
+        passRate: 0,
+        tests: [makeTest({ outcome: 'failed', error: 'boom' })],
+      }),
+      { showFailedTests: false },
+    );
+
+    expect(markdown).not.toContain('Failed Tests');
+  });
+
+  it('omits the flaky section when showFlakyTests is false', () => {
+    const markdown = formatSummary(
+      makeSummary({
+        total: 1,
+        passed: 0,
+        flaky: 1,
+        passRate: 0,
+        tests: [makeTest({ outcome: 'flaky', retries: 1 })],
+      }),
+      { showFlakyTests: false },
+    );
+
+    expect(markdown).not.toContain('Flaky Tests');
+  });
+
+  it('sorts the slowest tests and respects the limit', () => {
+    const tests = [
+      makeTest({ title: 'fast', duration: 10 }),
+      makeTest({ title: 'medium', duration: 500 }),
+      makeTest({ title: 'slow', duration: 5000 }),
+    ];
+
+    const markdown = formatSummary(makeSummary({ tests }), { showSlowestTests: 2 });
+
+    expect(markdown).toContain('### 🐢 Slowest Tests');
+    expect(markdown).toContain('slow');
+    expect(markdown).toContain('medium');
+    expect(markdown).not.toContain('| fast |');
+  });
+
+  it('excludes skipped tests from the slowest tests table', () => {
+    const markdown = formatSummary(
+      makeSummary({
+        tests: [
+          makeTest({ title: 'skipped slow', duration: 9000, outcome: 'skipped' }),
+          makeTest({ title: 'normal', duration: 100 }),
+        ],
+      }),
+      { showSlowestTests: 5 },
+    );
+
+    expect(markdown).not.toContain('skipped slow');
+  });
+
+  it('omits the slowest section when showSlowestTests is 0', () => {
+    const markdown = formatSummary(makeSummary(), { showSlowestTests: 0 });
+    expect(markdown).not.toContain('Slowest Tests');
+  });
+
+  it('omits the project breakdown when disabled', () => {
+    const markdown = formatSummary(makeSummary(), { includeProjectBreakdown: false });
+    expect(markdown).not.toContain('Project Breakdown');
+  });
+
+  it('keeps table rows intact when a title contains a pipe', () => {
+    const markdown = formatSummary(
+      makeSummary({ tests: [makeTest({ title: 'a | b', duration: 5 })] }),
+      { showSlowestTests: 5 },
+    );
+
+    expect(markdown).toContain('a \\| b');
+  });
+
+  it('escapes pipes in error messages exactly once', () => {
+    const markdown = formatSummary(
+      makeSummary({
+        total: 1,
+        passed: 0,
+        failed: 1,
+        passRate: 0,
+        tests: [makeTest({ outcome: 'failed', error: 'expected |a| to equal b' })],
+      }),
+    );
+
+    // A single backslash — the pipe is escaped once, not twice.
+    expect(markdown).toContain('expected \\|a\\| to equal b');
+    expect(markdown).not.toContain('\\\\|');
+  });
+});
+
+describe('retry handling', () => {
+  /** Builds a minimal `TestCase`-like object for the reporter. */
+  function makeTestCase(id: string, results: unknown[]) {
+    return {
+      id,
+      results,
+      titlePath: () => ['spec.ts', 'suite', 'a test'],
+      location: { file: '/repo/spec.ts', line: 7 },
+      parent: { title: 'chromium', type: 'project', parent: undefined, project: () => undefined },
+      outcome: () => 'flaky',
+    };
+  }
+
+  it('records a retried test once, using its final outcome', async () => {
+    const { default: PlaywrightSummaryReporter } = await import('../src/index');
+
+    const reporter = new PlaywrightSummaryReporter({ outputFile: 'unused.md' });
+    const test = makeTestCase('test-1', []);
+
+    // Attempt 1: failed.
+    reporter.onTestEnd(test as never, { status: 'failed', duration: 100, retry: 0, error: undefined } as never);
+    // Attempt 2: passed on retry.
+    reporter.onTestEnd(test as never, { status: 'passed', duration: 120, retry: 1, error: undefined } as never);
+
+    const records = (reporter as never as { records: Map<string, TestRecord> }).records;
+
+    expect(records.size).toBe(1);
+
+    const record = records.get('test-1');
+
+    expect(record?.outcome).toBe('flaky');
+    expect(record?.retries).toBe(1);
+    expect(record?.duration).toBe(120);
+  });
+
+  it('does not double-count a test across retries in the summary', async () => {
+    const { default: PlaywrightSummaryReporter } = await import('../src/index');
+
+    const reporter = new PlaywrightSummaryReporter({ outputFile: 'unused.md' });
+    const test = makeTestCase('test-2', []);
+
+    reporter.onTestEnd(test as never, { status: 'failed', duration: 100, retry: 0 } as never);
+    reporter.onTestEnd(test as never, { status: 'passed', duration: 120, retry: 1 } as never);
+
+    const records = (reporter as never as { records: Map<string, TestRecord> }).records;
+
+    expect(records.size).toBe(1);
+  });
+});
+
+describe('pass rate', () => {
+  it('excludes skipped tests from the denominator', async () => {
+    const { default: PlaywrightSummaryReporter } = await import('../src/index');
+
+    const reporter = new PlaywrightSummaryReporter({ outputFile: 'unused.md' });
+
+    const makeCase = (id: string, outcome: string) => ({
+      id,
+      titlePath: () => ['spec.ts', 'a test'],
+      location: { file: '/repo/spec.ts', line: 7 },
+      parent: { title: 'chromium', type: 'project', parent: undefined, project: () => undefined },
+      outcome: () => outcome,
+    });
+
+    reporter.onTestEnd(makeCase('p1', 'expected') as never, {
+      status: 'passed',
+      duration: 10,
+      retry: 0,
+    } as never);
+    reporter.onTestEnd(makeCase('p2', 'expected') as never, {
+      status: 'passed',
+      duration: 10,
+      retry: 0,
+    } as never);
+    reporter.onTestEnd(makeCase('p3', 'skipped') as never, {
+      status: 'skipped',
+      duration: 0,
+      retry: 0,
+    } as never);
+
+    const data = (reporter as never as { buildSummary(result: unknown, duration: number): SummaryData })
+      .buildSummary({ status: 'passed' }, 100);
+
+    // 2 passed out of 2 non-skipped tests => 100%.
+    expect(data.total).toBe(3);
+    expect(data.skipped).toBe(1);
+    expect(data.passRate).toBe(100);
+  });
+
+  it('reports 0% when every test was skipped', async () => {
+    const { default: PlaywrightSummaryReporter } = await import('../src/index');
+
+    const reporter = new PlaywrightSummaryReporter({ outputFile: 'unused.md' });
+
+    const test = {
+      id: 's1',
+      titlePath: () => ['spec.ts', 'a test'],
+      location: { file: '/repo/spec.ts', line: 7 },
+      parent: { title: 'chromium', type: 'project', parent: undefined, project: () => undefined },
+      outcome: () => 'skipped',
+    };
+
+    reporter.onTestEnd(test as never, { status: 'skipped', duration: 0, retry: 0 } as never);
+
+    const data = (reporter as never as { buildSummary(result: unknown, duration: number): SummaryData })
+      .buildSummary({ status: 'passed' }, 100);
+
+    expect(data.passRate).toBe(0);
+  });
+});
+
+describe('GITHUB_STEP_SUMMARY append', () => {
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'pw-summary-reporter-'));
+  const summaryPath = path.join(tmpDir, 'job-summary.md');
+
+  afterEach(() => {
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  it('appends the markdown to the file referenced by GITHUB_STEP_SUMMARY', async () => {
+    const { default: PlaywrightSummaryReporter } = await import('../src/index');
+
+    const previous = process.env.GITHUB_STEP_SUMMARY;
+    process.env.GITHUB_STEP_SUMMARY = summaryPath;
+
+    try {
+      const reporter = new PlaywrightSummaryReporter({ outputFile: path.join(tmpDir, 'out.md') });
+      const markdown = formatSummary(makeSummary());
+
+      reporter['appendToGitHubSummary'](markdown);
+
+      expect(fs.existsSync(summaryPath)).toBe(true);
+      expect(fs.readFileSync(summaryPath, 'utf8')).toContain('## Playwright Test Summary');
+    } finally {
+      if (previous === undefined) {
+        delete process.env.GITHUB_STEP_SUMMARY;
+      } else {
+        process.env.GITHUB_STEP_SUMMARY = previous;
+      }
+    }
+  });
+
+  it('does not write when writeToGitHubSummary is false', async () => {
+    const { default: PlaywrightSummaryReporter } = await import('../src/index');
+
+    const previous = process.env.GITHUB_STEP_SUMMARY;
+    process.env.GITHUB_STEP_SUMMARY = summaryPath;
+
+    try {
+      const reporter = new PlaywrightSummaryReporter({
+        outputFile: path.join(tmpDir, 'out.md'),
+        writeToGitHubSummary: false,
+      });
+
+      reporter['appendToGitHubSummary'](formatSummary(makeSummary()));
+
+      expect(fs.existsSync(summaryPath)).toBe(false);
+    } finally {
+      if (previous === undefined) {
+        delete process.env.GITHUB_STEP_SUMMARY;
+      } else {
+        process.env.GITHUB_STEP_SUMMARY = previous;
+      }
+    }
+  });
+});

@@ -1,0 +1,56 @@
+{
+  "name": "playwright-summary-reporter",
+  "version": "1.0.0",
+  "description": "Zero-dependency Playwright custom reporter that generates clean Markdown test summaries for local runs and GitHub Actions Job Summaries.",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE",
+    "CHANGELOG.md"
+  ],
+  "keywords": [
+    "playwright",
+    "playwright-reporter",
+    "playwright-summary",
+    "custom-reporter",
+    "test-automation",
+    "qa",
+    "sdet",
+    "github-actions",
+    "markdown",
+    "ci-cd",
+    "testing"
+  ],
+  "author": "Md Salekin Newaz <salekinnewaz0@gmail.com> (https://salekin-dev.vercel.app)",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/salekinnewaz/playwright-summary-reporter.git"
+  },
+  "homepage": "https://github.com/salekinnewaz/playwright-summary-reporter#readme",
+  "bugs": {
+    "url": "https://github.com/salekinnewaz/playwright-summary-reporter/issues"
+  },
+  "scripts": {
+    "clean": "node -e \"require('fs').rmSync('dist',{recursive:true,force:true})\"",
+    "build": "npm run clean && tsc",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:e2e": "playwright test --config examples/playwright.config.ts",
+    "prepublishOnly": "npm run typecheck && npm run build && npm test"
+  },
+  "peerDependencies": {
+    "@playwright/test": ">=1.40.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.40.0",
+    "@types/node": "^20.11.0",
+    "typescript": "^5.3.3",
+    "vitest": "^1.2.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

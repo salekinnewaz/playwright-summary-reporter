@@ -1,0 +1,15 @@
+node_modules/
+dist/
+coverage/
+*.log
+npm-debug.log*
+.DS_Store
+.vscode/
+.idea/
+
+# generated reporter output
+playwright-summary.md
+test-summary.md
+test-results/
+playwright-report/
+examples/test-summary.md
