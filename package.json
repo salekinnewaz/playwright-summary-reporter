@@ -1,6 +1,6 @@
 {
   "name": "playwright-summary-reporter",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "description": "Zero-dependency Playwright custom reporter that generates clean Markdown test summaries for local runs and GitHub Actions Job Summaries.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
