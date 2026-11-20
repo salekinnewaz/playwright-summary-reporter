@@ -1,9 +1,9 @@
 # playwright-summary-reporter
 
-[![npm version](https://img.shields.io/npm/v/playwright-summary-reporter.svg)](https://www.npmjs.com/package/playwright-summary-reporter)
-[![npm downloads](https://img.shields.io/npm/dm/playwright-summary-reporter.svg)](https://www.npmjs.com/package/playwright-summary-reporter)
+[![npm version](https://img.shields.io/npm/v/playwright-summary-reporter)](https://www.npmjs.com/package/playwright-summary-reporter)
+[![npm downloads](https://img.shields.io/npm/dw/playwright-summary-reporter)](https://www.npmjs.com/package/playwright-summary-reporter)
 [![CI status](https://github.com/salekinnewaz/playwright-summary-reporter/actions/workflows/ci.yml/badge.svg)](https://github.com/salekinnewaz/playwright-summary-reporter/actions/workflows/ci.yml)
-[![MIT license](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 A zero-dependency Playwright custom reporter that turns your test run into a **beautiful Markdown dashboard** — locally and straight into the GitHub Actions Job Summary tab.
 
