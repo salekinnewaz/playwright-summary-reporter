@@ -4,6 +4,9 @@
 [![npm downloads](https://img.shields.io/npm/dw/playwright-summary-reporter)](https://www.npmjs.com/package/playwright-summary-reporter)
 [![CI status](https://github.com/salekinnewaz/playwright-summary-reporter/actions/workflows/ci.yml/badge.svg)](https://github.com/salekinnewaz/playwright-summary-reporter/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![npm](https://img.shields.io/npm/v/playwright-summary-reporter?logo=npm&logoColor=cb3837)](https://www.npmjs.com/package/playwright-summary-reporter)
+[![npm downloads](https://img.shields.io/npm/dm/playwright-summary-reporter?logo=npm&logoColor=cb3837)](https://www.npmjs.com/package/playwright-summary-reporter)
+[![MIT License](https://img.shields.io/badge/license-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 
 A zero-dependency Playwright custom reporter that turns your test run into a **beautiful Markdown dashboard** — locally and straight into the GitHub Actions Job Summary tab.
 
@@ -234,9 +237,18 @@ Timeouts are still surfaced: as a `⏱️ Timeout` badge in the Failed Tests tab
 
 **Md Salekin Newaz** — Senior Software QA Engineer, ISTQB®
 
+[![LinkedIn](https://img.shields.io/badge/LinkedIn-0A66C2?logo=linkedin&logoColor=white)](https://www.linkedin.com/in/md-salekin-newaz)
+[![GitHub](https://img.shields.io/badge/GitHub-181717?logo=github&logoColor=white)](https://github.com/salekinnewaz)
+[![Portfolio](https://img.shields.io/badge/Portfolio-000000?logo=vercel&logoColor=white)](https://salekin-dev.vercel.app)
+
+- LinkedIn: [Md Salekin Newaz](https://www.linkedin.com/in/md-salekin-newaz)
+- GitHub: [salekinnewaz](https://github.com/salekinnewaz)
 - Portfolio: [https://salekin-dev.vercel.app](https://salekin-dev.vercel.app)
-- GitHub: [https://github.com/salekinnewaz](https://github.com/salekinnewaz)
-- LinkedIn: [https://www.linkedin.com/in/md-salekin-newaz](https://www.linkedin.com/in/md-salekin-newaz)
+
+## Contributing
+
+Contributions are welcome! Please read [CONTRIBUTING.md](./CONTRIBUTING.md) before opening a pull
+request, and see [SECURITY.md](./SECURITY.md) for how to report security issues.
 
 ## License
 

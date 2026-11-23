@@ -5,6 +5,18 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- `SECURITY.md` with private vulnerability reporting via GitHub Security Advisories.
+- `CONTRIBUTING.md` covering fork, install, build, test, and pull-request workflow.
+
+### Changed
+
+- Improved npm SEO metadata: refreshed `description`, expanded `keywords`, and normalised the
+  `author` field to a structured object. No runtime or API changes.
+
 ## [2.1.0] - 2026-11-19
 
 ### Added

@@ -1,7 +1,7 @@
 {
   "name": "playwright-summary-reporter",
   "version": "2.1.0",
-  "description": "Zero-dependency Playwright custom reporter that generates clean Markdown test summaries for local runs and GitHub Actions Job Summaries.",
+  "description": "Zero-dependency Playwright custom reporter for fast CI failure triage, GitHub Actions Job Summaries (GITHUB_STEP_SUMMARY), 1-click local re-run commands, and AI-ready debugging prompts.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "files": [
@@ -13,17 +13,21 @@
   "keywords": [
     "playwright",
     "playwright-reporter",
-    "playwright-summary",
-    "custom-reporter",
-    "test-automation",
-    "qa",
-    "sdet",
+    "playwright-test",
     "github-actions",
-    "markdown",
+    "github-step-summary",
+    "flaky-tests",
     "ci-cd",
-    "testing"
+    "sdet",
+    "ai-debugging",
+    "test-automation",
+    "e2e-testing",
+    "typescript"
   ],
-  "author": "Md Salekin Newaz <salekinnewaz0@gmail.com> (https://salekin-dev.vercel.app)",
+  "author": {
+    "name": "Md Salekin Newaz",
+    "url": "https://salekin-dev.vercel.app"
+  },
   "license": "MIT",
   "repository": {
     "type": "git",
