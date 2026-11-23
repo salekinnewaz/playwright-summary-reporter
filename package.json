@@ -1,6 +1,6 @@
 {
   "name": "playwright-summary-reporter",
-  "version": "2.1.0",
+  "version": "2.1.1",
   "description": "Zero-dependency Playwright custom reporter for fast CI failure triage, GitHub Actions Job Summaries (GITHUB_STEP_SUMMARY), 1-click local re-run commands, and AI-ready debugging prompts.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
